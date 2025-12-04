@@ -21,7 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { FormValues, HubSpotOwnerSummary } from "../types";
 import { UseFormReturn } from "react-hook-form";
-import type { PipelineStage } from "@hubspot/api-client/lib/codegen/crm/pipelines";
+import type { DealStage } from "@/lib/hubspot-deals";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Popover,
@@ -44,7 +44,7 @@ interface DealOverviewFormProps {
   form: UseFormReturn<FormValues>;
   onSubmit: (values: FormValues) => Promise<void>;
   isSubmitting: boolean;
-  stages: PipelineStage[];
+  stages: DealStage[];
   stagesLoading: boolean;
   stagesError: string | null;
   owners: HubSpotOwnerSummary[];

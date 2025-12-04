@@ -82,20 +82,33 @@ function DealContentClient({ dealId }: DealContentClientProps) {
 
   useEffect(() => {
     if (!deal) return;
+    if (stagesLoading) return;
+    if (stages.length === 0) return; // Wait for stages to be available
 
-    if (stagesLoading) {
-      return;
+    // Try to find matching stage ID
+    const dealStageValue = deal.properties.dealstage || "";
+    
+    // If direct match fails, log for debugging (only in development)
+    if (dealStageValue && !stages.find(s => s.id === dealStageValue)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Deal stage value does not match any stage ID:', {
+          dealStageValue,
+          availableIds: stages.map(s => s.id),
+          availableLabels: stages.map(s => s.label),
+        });
+      }
     }
 
     form.reset({
       dealname: deal.properties.dealname || "",
-      dealstage: deal.properties.dealstage || "",
+      dealstage: dealStageValue,
       notes: deal.properties.notes || "",
       hubspot_owner_id: deal.properties.hubspot_owner_id || "",
     });
   }, [
     deal,
     stagesLoading,
+    stages, // Add stages to dependencies so form resets when stages load
     form,
   ]);
 
@@ -108,7 +121,17 @@ function DealContentClient({ dealId }: DealContentClientProps) {
     const updates: Partial<FormValues> = {};
     (Object.keys(values) as (keyof FormValues)[]).forEach((key) => {
       if (hasChanged(values[key], originalDeal.properties[key])) {
-        updates[key] = values[key];
+        // Special handling for dealstage: only include if it's a valid stage
+        if (key === "dealstage") {
+          const stageValue = values.dealstage;
+          // Only include dealstage if it's not empty and matches a valid stage ID
+          if (stageValue && stages.some((stage) => stage.id === stageValue)) {
+            updates[key] = values[key];
+          }
+          // If dealstage is invalid/empty, exclude it from updates to preserve original value
+        } else {
+          updates[key] = values[key];
+        }
       }
     });
 

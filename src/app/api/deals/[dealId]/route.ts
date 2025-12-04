@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dealUpdateSchema } from "@/validators/deal";
 import { hubspotClient } from "@/lib/hubspot";
+import { getDealStages } from "@/lib/hubspot-deals";
 
 // Define the properties we want to fetch/update
 // For demo purposes, restrict to default HubSpot deal properties only
@@ -168,12 +169,36 @@ export async function PATCH(
   const propertiesToUpdate = Object.entries(parsedPayload.data).reduce<Record<string, string>>(
     (acc, [key, value]) => {
       if (typeof value === "string") {
-        acc[key] = value;
+        // Validate dealstage if present
+        if (key === "dealstage") {
+          // We'll validate this against available stages below
+          acc[key] = value;
+        } else {
+          acc[key] = value;
+        }
       }
       return acc;
     },
     {},
   );
+
+  // Validate dealstage if it's being updated
+  if (propertiesToUpdate.dealstage !== undefined) {
+    const stages = await getDealStages();
+    const validStageIds = new Set(stages.map((stage) => stage.id));
+    
+    if (propertiesToUpdate.dealstage && !validStageIds.has(propertiesToUpdate.dealstage)) {
+      return NextResponse.json(
+        { message: `Invalid dealstage: ${propertiesToUpdate.dealstage} is not a valid stage ID` },
+        { status: 400 }
+      );
+    }
+    
+    // If dealstage is empty string, exclude it from update to preserve original value
+    if (propertiesToUpdate.dealstage === "") {
+      delete propertiesToUpdate.dealstage;
+    }
+  }
 
   try {
     const updatedDeal = await hubspotClient.crm.deals.basicApi.update(dealId, {

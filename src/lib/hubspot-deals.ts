@@ -86,6 +86,10 @@ export const getDealStages = unstable_cache(
       const pipeline = pipelinesResponse.results?.[0];
 
       if (!pipeline?.stages?.length) {
+        console.warn(
+          "No pipeline stages found in HubSpot, using fallback stages. " +
+            "Note: Fallback stage IDs may not match actual deal stage IDs in HubSpot."
+        );
         return FALLBACK_DEAL_STAGES;
       }
 
@@ -102,13 +106,20 @@ export const getDealStages = unstable_cache(
 
       return DealStageResponseSchema.parse(stages);
     } catch (error) {
-      console.error("Error fetching deal stages from HubSpot:", error);
+      console.error(
+        "Error fetching deal stages from HubSpot, using fallback stages:",
+        error
+      );
+      console.warn(
+        "Fallback stage IDs may not match actual deal stage IDs in HubSpot. " +
+          "Deals with mismatched stage IDs may not display correctly."
+      );
       return FALLBACK_DEAL_STAGES;
     }
   },
   ["deal-stages"],
   {
-    revalidate: 3600, // Cache for 1 hour
+    revalidate: 300, // Cache for 5 minutes (reduced for better Vercel compatibility)
     tags: ["hubspot-stages"],
   }
 );

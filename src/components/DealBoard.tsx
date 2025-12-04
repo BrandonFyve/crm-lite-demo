@@ -128,19 +128,11 @@ export default function DealBoard({ deals, stages }: DealBoardProps) {
     // If we're dropping on another deal, we need to find the parent column
     let newStageId = over.id as string;
 
-    // Check if the newStageId is actually a deal ID (numeric) rather than a stage ID (string like "qualifiedtobuy")
-    const validStageIds = [
-      "appointmentscheduled",
-      "qualifiedtobuy",
-      "presentationscheduled",
-      "decisionmakerboughtin",
-      "contractsent",
-      "closedwon",
-      "closedlost",
-    ];
+    // Create a Set of valid stage IDs from the stages prop for efficient lookup
+    const validStageIds = new Set(stages.map((stage) => stage.id));
 
     // If it's not a valid stage ID, it's probably a deal ID
-    if (!validStageIds.includes(newStageId)) {
+    if (!validStageIds.has(newStageId)) {
       // Find which column contains this deal ID
       let containingColumn = "";
       Object.entries(columns).forEach(([columnId, deals]) => {

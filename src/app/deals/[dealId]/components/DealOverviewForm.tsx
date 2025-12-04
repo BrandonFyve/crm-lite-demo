@@ -92,6 +92,7 @@ export function DealOverviewForm({
               <FormItem>
                 <FormLabel>Deal Stage</FormLabel>
                 <Select
+                  key={`stage-${field.value}`}
                   disabled={stagesLoading || stages.length === 0}
                   onValueChange={field.onChange}
                   value={field.value}

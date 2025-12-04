@@ -1,11 +1,5 @@
 import { withRetry } from "@/lib/rate-limit";
 
-// Helper to flush promises
-const flushPromises = async () => {
-  await Promise.resolve();
-  await Promise.resolve();
-};
-
 describe("withRetry", () => {
   beforeEach(() => {
     jest.useFakeTimers();

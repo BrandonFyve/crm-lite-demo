@@ -151,8 +151,10 @@ export const getCachedDeals = unstable_cache(
 
 // Wrapped search API call with retry logic
 const doSearchWithRetry = withRetry(
-  async (request: Parameters<typeof hubspotClient.crm.deals.searchApi.doSearch>[0]) => {
-    return await hubspotClient.crm.deals.searchApi.doSearch(request);
+  async (request: unknown) => {
+    return await hubspotClient.crm.deals.searchApi.doSearch(
+      request as Parameters<typeof hubspotClient.crm.deals.searchApi.doSearch>[0]
+    );
   },
   "search-deals"
 );

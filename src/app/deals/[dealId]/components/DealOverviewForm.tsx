@@ -38,10 +38,7 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { Button as ShadButton } from "@/components/ui/button";
-import { useEffect, useState } from "react";
-import { CurrencyInput } from "./CurrencyInput";
-
-const NONE_OPTION_VALUE = "__none__";
+import { useState } from "react";
 
 interface DealOverviewFormProps {
   form: UseFormReturn<FormValues>;
@@ -69,7 +66,6 @@ export function DealOverviewForm({
   createdDate,
 }: DealOverviewFormProps) {
   const [dealOwnerPopoverOpen, setDealOwnerPopoverOpen] = useState(false);
-  const [dealAdminPopoverOpen, setDealAdminPopoverOpen] = useState(false);
 
   return (
     <Form {...form}>

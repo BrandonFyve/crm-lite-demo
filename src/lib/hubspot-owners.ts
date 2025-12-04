@@ -49,7 +49,7 @@ export const getOwners = unstable_cache(
 
       // Filter and map owners, removing invalid ones
       const validOwners = owners
-        .map((owner) => {
+        .map((owner): OwnerSummary | null => {
           const id = String(owner.id);
           // Filter out owners with empty IDs
           if (!id || id.trim().length === 0) {

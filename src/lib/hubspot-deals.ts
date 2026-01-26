@@ -2,6 +2,11 @@ import { hubspotClient } from "./hubspot";
 import { unstable_cache } from "next/cache";
 import { z } from "zod";
 import { withRetry } from "./rate-limit";
+import {
+  FilterGroup,
+  Filter,
+  FilterOperatorEnum,
+} from "@hubspot/api-client/lib/codegen/crm/deals";
 
 export const DEAL_PROPERTIES = [
   // Core default HubSpot deal properties only
@@ -12,6 +17,7 @@ export const DEAL_PROPERTIES = [
   "hubspot_owner_id",
   "createdate",
   "notes",
+  "pipeline", // Pipeline ID for filtering
 ];
 
 const DealStageSchema = z.object({
@@ -24,6 +30,12 @@ const DealStageSchema = z.object({
 export type DealStage = z.infer<typeof DealStageSchema>;
 
 const DealStageResponseSchema = DealStageSchema.array();
+
+export interface Pipeline {
+  id: string;
+  label: string;
+  stages: DealStage[];
+}
 
 const FALLBACK_DEAL_STAGES = [
   {
@@ -147,11 +159,13 @@ export const getCachedDeals = unstable_cache(
   async ({
     limit = 100,
     sorts = ["-closedate"],
+    pipelineId,
   }: {
     limit?: number;
     sorts?: string[];
+    pipelineId?: string;
   } = {}) => {
-    return await searchDeals({ limit, sorts });
+    return await searchDeals({ limit, sorts, pipelineId });
   },
   ["deals-search"],
   {
@@ -170,19 +184,77 @@ const doSearchWithRetry = withRetry(
   "search-deals"
 );
 
+// Allowed pipeline IDs for deal filtering
+export const ALLOWED_PIPELINE_IDS = ["859017476", "859172223", "859283831"];
+
+export const getTargetPipelines = unstable_cache(
+  async (): Promise<Pipeline[]> => {
+    try {
+      const pipelinesResponse = await getAllPipelinesWithRetry();
+      const targetIds = new Set(ALLOWED_PIPELINE_IDS);
+
+      const pipelines = pipelinesResponse.results
+        ?.filter((p) => targetIds.has(p.id))
+        .map((pipeline) => ({
+          id: pipeline.id,
+          label: pipeline.label,
+          stages: (pipeline.stages || [])
+            .map((stage, index) => ({
+              id: stage.id,
+              label: stage.label,
+              displayOrder: stage.displayOrder ?? index,
+              probability: stage.metadata?.probability
+                ? Number(stage.metadata.probability) / 100
+                : 0,
+            }))
+            .sort((a, b) => a.displayOrder - b.displayOrder),
+        })) ?? [];
+
+      return pipelines;
+    } catch (error) {
+      console.error("Error fetching target pipelines:", error);
+      return [];
+    }
+  },
+  ["target-pipelines"],
+  {
+    revalidate: 300,
+    tags: ["hubspot-pipelines"],
+  }
+);
+
 export async function searchDeals({
   limit = 100,
   sorts = ["-closedate"],
+  pipelineId,
 }: {
   limit?: number;
   sorts?: string[];
+  pipelineId?: string;
 }) {
   const allResults: z.infer<typeof DealSearchResponseSchema> = [];
   let after: string | undefined;
 
+  // If specific pipeline requested, filter to just that one
+  // Otherwise, filter to all allowed pipelines
+  const pipelineIds = pipelineId ? [pipelineId] : ALLOWED_PIPELINE_IDS;
+
+  // Create filterGroups for OR logic between pipelines
+  // Each filterGroup uses EQ operator for one pipeline ID
+  // Multiple filterGroups create OR condition (pipeline A OR pipeline B OR pipeline C)
+  const filterGroups: FilterGroup[] = pipelineIds.map((id) => ({
+    filters: [
+      {
+        propertyName: "pipeline",
+        operator: FilterOperatorEnum.Eq,
+        value: id,
+      },
+    ],
+  }));
+
   do {
     const request = {
-      filterGroups: [],
+      filterGroups: filterGroups,
       properties: [...DEAL_PROPERTIES],
       limit,
       sorts,

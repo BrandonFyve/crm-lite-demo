@@ -2,13 +2,13 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import type { SimplePublicObjectWithAssociations } from "@hubspot/api-client/lib/codegen/crm/deals";
 import DealsViewContainer from "@/components/DealsViewContainer";
-import { getDealStages, getCachedDeals } from "@/lib/hubspot-deals";
+import { getTargetPipelines, getCachedDeals } from "@/lib/hubspot-deals";
 import { getOwners } from "@/lib/hubspot-owners";
 
 export default async function Home() {
-  // Fetch stages, auth, and owners server-side in parallel
-  const [stages, authResult, owners] = await Promise.all([
-    getDealStages(),
+  // Fetch pipelines, auth, and owners server-side in parallel
+  const [pipelines, authResult, owners] = await Promise.all([
+    getTargetPipelines(),
     auth(),
     getOwners(),
   ]);
@@ -24,6 +24,7 @@ export default async function Home() {
     error = "User not authenticated. Please sign in.";
   } else {
     try {
+      // Fetch all deals from allowed pipelines (no specific pipeline filter)
       const results = await getCachedDeals({ limit: 100 });
       deals = results;
     } catch (e: unknown) {
@@ -33,8 +34,6 @@ export default async function Home() {
           : "An unknown error occurred while fetching deals.";
     }
   }
-
-  const simplifiedStages = stages.map(({ id, label }) => ({ id, label }));
 
   return (
     <main className="flex min-h-screen flex-col items-center p-12">
@@ -54,15 +53,15 @@ export default async function Home() {
           Error: {error}
         </div>
       )}
-      {!error && deals.length === 0 && (
+      {!error && pipelines.length === 0 && (
         <div className="w-full max-w-full p-4 my-4 text-center text-gray-700 bg-gray-100 border border-gray-300 rounded">
-          No deals found in HubSpot.
+          No pipelines found. Please check your HubSpot configuration.
         </div>
       )}
-      {!error && deals.length > 0 && simplifiedStages.length > 0 && (
+      {!error && pipelines.length > 0 && (
         <DealsViewContainer 
           deals={deals} 
-          stages={simplifiedStages}
+          pipelines={pipelines}
           initialOwners={owners}
         />
       )}

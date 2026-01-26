@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { SimplePublicObjectWithAssociations } from "@hubspot/api-client/lib/codegen/crm/deals";
 import { LayoutGrid, Table, Check, ChevronsUpDown, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -18,13 +18,19 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { OwnerSummary } from "@/lib/hubspot-owners";
-
-
+import type { Pipeline } from "@/lib/hubspot-deals";
 
 interface DealsViewContainerProps {
   deals: SimplePublicObjectWithAssociations[];
-  stages: { id: string; label: string }[];
+  pipelines: Pipeline[];
   initialOwners: OwnerSummary[];
 }
 
@@ -32,7 +38,7 @@ type ViewMode = "kanban" | "table";
 
 export default function DealsViewContainer({ 
   deals, 
-  stages,
+  pipelines,
   initialOwners,
 }: DealsViewContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
@@ -40,6 +46,45 @@ export default function DealsViewContainer({
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>(
+    pipelines.length > 0 ? pipelines[0].id : ""
+  );
+  const [filteredDealsForPipeline, setFilteredDealsForPipeline] = useState<
+    SimplePublicObjectWithAssociations[]
+  >([]);
+
+  // Get selected pipeline and its stages
+  const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId);
+  const stages = selectedPipeline
+    ? selectedPipeline.stages.map(({ id, label }) => ({ id, label }))
+    : [];
+
+  // Fetch deals for selected pipeline when it changes
+  useEffect(() => {
+    const fetchDealsForPipeline = async () => {
+      if (!selectedPipelineId) {
+        setFilteredDealsForPipeline([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/deals?pipelineId=${selectedPipelineId}`
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch deals");
+        }
+        const data = await response.json();
+        setFilteredDealsForPipeline(data);
+      } catch (error) {
+        console.error("Error fetching deals for pipeline:", error);
+        toast.error("Failed to load deals for selected pipeline");
+        setFilteredDealsForPipeline([]);
+      }
+    };
+
+    fetchDealsForPipeline();
+  }, [selectedPipelineId]);
 
   // Use server-provided owners instead of fetching client-side
   const owners = initialOwners;
@@ -47,7 +92,8 @@ export default function DealsViewContainer({
   const ownersError = null;
 
   const filteredDeals = useMemo(() => {
-    let filtered = deals;
+    // Start with deals from selected pipeline
+    let filtered = filteredDealsForPipeline;
 
     // Filter by owner
     if (selectedOwnerId) {
@@ -66,7 +112,7 @@ export default function DealsViewContainer({
     }
 
     return filtered;
-  }, [deals, selectedOwnerId, searchTerm]);
+  }, [filteredDealsForPipeline, selectedOwnerId, searchTerm]);
 
   const selectedOwner = owners.find((o) => String(o.id) === selectedOwnerId);
   const ownerButtonLabel = selectedOwner
@@ -137,6 +183,21 @@ export default function DealsViewContainer({
         <CardContent>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
+              <Select
+                value={selectedPipelineId}
+                onValueChange={setSelectedPipelineId}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Select pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 placeholder="Search deals..."
                 value={searchTerm}

@@ -68,9 +68,15 @@ describe("DealsViewContainer", () => {
     },
   ];
 
-  const stages = [
-    { id: "stage-a", label: "Stage A" },
-    { id: "stage-b", label: "Stage B" },
+  const pipelines = [
+    {
+      id: "859017476",
+      label: "Pipeline 1",
+      stages: [
+        { id: "stage-a", label: "Stage A", displayOrder: 0, probability: 0.2 },
+        { id: "stage-b", label: "Stage B", displayOrder: 1, probability: 0.4 },
+      ],
+    },
   ];
 
   const mockOwners = [
@@ -91,6 +97,12 @@ describe("DealsViewContainer", () => {
     DealTableMocked.mockClear();
     mockFetch.mockReset();
     jest.clearAllMocks();
+    
+    // Mock fetch for pipeline deals API
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => deals,
+    });
   });
 
   afterEach(() => {
@@ -110,7 +122,7 @@ describe("DealsViewContainer", () => {
   };
 
   it("filters deals by selected owner", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     await openOwnerPopover();
     await selectOwner("Bob Smith");
@@ -125,7 +137,7 @@ describe("DealsViewContainer", () => {
   });
 
   it("switches between board and table views", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     await waitFor(() => expect(DealBoardMocked).toHaveBeenCalled());
     expect(screen.getByTestId("deal-board")).toBeInTheDocument();
@@ -138,7 +150,7 @@ describe("DealsViewContainer", () => {
   });
 
   it("clears owner filter when Clear button is pressed", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     await openOwnerPopover();
     await selectOwner("Bob Smith");
@@ -160,7 +172,7 @@ describe("DealsViewContainer", () => {
   });
 
   it("filters deals via search input in kanban view", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     await waitFor(() => expect(DealBoardMocked).toHaveBeenCalled());
 
@@ -175,7 +187,7 @@ describe("DealsViewContainer", () => {
   });
 
   it("filters deals via search input in table view", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     const tableButton = screen.getByRole("button", { name: /table/i });
     fireEvent.click(tableButton);
@@ -193,7 +205,7 @@ describe("DealsViewContainer", () => {
   });
 
   it("filters deals by search term across multiple fields", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     await waitFor(() => expect(DealBoardMocked).toHaveBeenCalled());
 
@@ -209,7 +221,7 @@ describe("DealsViewContainer", () => {
   });
 
   it("combines search and owner filters", async () => {
-    render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+    render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
 
     await waitFor(() => expect(DealBoardMocked).toHaveBeenCalled());
 
@@ -237,7 +249,7 @@ describe("DealsViewContainer", () => {
 
   describe("export functionality", () => {
     it("shows export button in view options", () => {
-      render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+      render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
       
       const exportButton = screen.getByRole("button", { name: /export/i });
       expect(exportButton).toBeInTheDocument();
@@ -255,7 +267,7 @@ describe("DealsViewContainer", () => {
         })
       );
 
-      render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+      render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
       
       const exportButton = screen.getByRole("button", { name: /export/i });
       fireEvent.click(exportButton);
@@ -283,7 +295,7 @@ describe("DealsViewContainer", () => {
         return originalCreateElement(tagName);
       });
 
-      render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+      render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
       
       const exportButton = screen.getByRole("button", { name: /export/i });
       fireEvent.click(exportButton);
@@ -313,7 +325,7 @@ describe("DealsViewContainer", () => {
     it("shows error toast when export fails", async () => {
       mockFetch.mockRejectedValueOnce(new Error("Export failed"));
 
-      render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+      render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
       
       const exportButton = screen.getByRole("button", { name: /export/i });
       fireEvent.click(exportButton);
@@ -326,7 +338,7 @@ describe("DealsViewContainer", () => {
     it("re-enables export button after error", async () => {
       mockFetch.mockRejectedValueOnce(new Error("Export failed"));
 
-      render(<DealsViewContainer deals={deals} stages={stages} initialOwners={mockOwners} />);
+      render(<DealsViewContainer deals={deals} pipelines={pipelines} initialOwners={mockOwners} />);
       
       const exportButton = screen.getByRole("button", { name: /export/i });
       fireEvent.click(exportButton);

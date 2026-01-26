@@ -1,4 +1,4 @@
-import { getDealStages, searchDeals, getCachedDeals, startDealExport, checkExportStatus, pollExportUntilComplete } from "@/lib/hubspot-deals";
+import { getDealStages, searchDeals, getCachedDeals, startDealExport, checkExportStatus, pollExportUntilComplete, getTargetPipelines } from "@/lib/hubspot-deals";
 
 const mockGetAll = jest.fn();
 const mockDoSearch = jest.fn();
@@ -188,6 +188,163 @@ describe("searchDeals", () => {
     expect(secondCallPayload).toMatchObject({ after: "cursor-1" });
 
     expect(result.map((deal) => deal.id)).toEqual(["1", "2"]);
+  });
+
+  it("filters deals by specific pipeline IDs when no pipelineId provided", async () => {
+    mockDoSearch.mockResolvedValue({
+      results: [
+        {
+          id: "1",
+          properties: {
+            dealname: "Filtered Deal",
+          },
+        },
+      ],
+    });
+
+    await searchDeals({});
+
+    expect(mockDoSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filterGroups: [
+          {
+            filters: [
+              {
+                propertyName: "pipeline",
+                operator: "EQ",
+                value: "859017476",
+              },
+            ],
+          },
+          {
+            filters: [
+              {
+                propertyName: "pipeline",
+                operator: "EQ",
+                value: "859172223",
+              },
+            ],
+          },
+          {
+            filters: [
+              {
+                propertyName: "pipeline",
+                operator: "EQ",
+                value: "859283831",
+              },
+            ],
+          },
+        ],
+      })
+    );
+  });
+
+  it("filters deals by single pipeline ID when pipelineId provided", async () => {
+    mockDoSearch.mockResolvedValue({
+      results: [
+        {
+          id: "1",
+          properties: {
+            dealname: "Filtered Deal",
+          },
+        },
+      ],
+    });
+
+    await searchDeals({ pipelineId: "859017476" });
+
+    expect(mockDoSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filterGroups: [
+          {
+            filters: [
+              {
+                propertyName: "pipeline",
+                operator: "EQ",
+                value: "859017476",
+              },
+            ],
+          },
+        ],
+      })
+    );
+  });
+});
+
+describe("getTargetPipelines", () => {
+  it("returns target pipelines with stages", async () => {
+    mockGetAll.mockResolvedValue({
+      results: [
+        {
+          id: "859017476",
+          label: "Pipeline 1",
+          stages: [
+            {
+              id: "stage-1",
+              label: "Stage 1",
+              displayOrder: 0,
+              metadata: { probability: "20" },
+            },
+          ],
+        },
+        {
+          id: "859172223",
+          label: "Pipeline 2",
+          stages: [
+            {
+              id: "stage-2",
+              label: "Stage 2",
+              displayOrder: 0,
+              metadata: { probability: "30" },
+            },
+          ],
+        },
+        {
+          id: "999999999",
+          label: "Other Pipeline",
+          stages: [],
+        },
+      ],
+    });
+
+    const result = await getTargetPipelines();
+
+    expect(mockGetAll).toHaveBeenCalledWith("deals");
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      id: "859017476",
+      label: "Pipeline 1",
+    });
+    expect(result[0].stages).toHaveLength(1);
+    expect(result[0].stages[0]).toMatchObject({
+      id: "stage-1",
+      label: "Stage 1",
+      probability: 0.2,
+    });
+  });
+
+  it("returns empty array when no target pipelines found", async () => {
+    mockGetAll.mockResolvedValue({
+      results: [
+        {
+          id: "999999999",
+          label: "Other Pipeline",
+          stages: [],
+        },
+      ],
+    });
+
+    const result = await getTargetPipelines();
+
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns empty array on error", async () => {
+    mockGetAll.mockRejectedValue(new Error("HubSpot failure"));
+
+    const result = await getTargetPipelines();
+
+    expect(result).toHaveLength(0);
   });
 });
 

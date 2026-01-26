@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { SimplePublicObjectWithAssociations } from "@hubspot/api-client/lib/codegen/crm/tickets";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import TicketBoard from "@/components/TicketBoard";
-import UserButtonClient from "@/components/UserButtonClient";
 import { findOwnerIdByEmail } from "@/lib/hubspot-owners";
 import { getTicketStages, searchTickets } from "@/lib/hubspot-tickets";
 
@@ -46,7 +45,7 @@ export default async function TicketsPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-12">
-      <div className="w-full max-w-full flex justify-between items-center mb-6">
+      <div className="w-full max-w-full flex items-center mb-6">
         <div className="flex space-x-6">
           <Link
             href="/"
@@ -56,7 +55,6 @@ export default async function TicketsPage() {
           </Link>
           <h1 className="text-2xl font-bold">My Tickets</h1>
         </div>
-        <UserButtonClient />
       </div>
       {error && (
         <div className="w-full max-w-full p-4 my-4 text-center text-red-700 bg-red-100 border border-red-400 rounded">
